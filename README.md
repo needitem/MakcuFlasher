@@ -126,6 +126,20 @@ git clone https://github.com/needitem/MakcuFlasher.git
 cd MakcuFlasher
 ```
 
+### Install Dependencies
+
+You can install dependencies using `requirements.txt`:
+
+```bash
+pip3 install -r requirements.txt
+```
+
+Or install the package in editable mode:
+
+```bash
+pip3 install -e .
+```
+
 ---
 
 ## Linux Permissions
