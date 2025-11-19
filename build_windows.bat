@@ -26,7 +26,12 @@ echo Build complete!
 echo.
 echo Executable: %BUILD_DIR%\%BUILD_TYPE%\MakcuFlasher.exe
 echo.
-echo Usage: MakcuFlasher.exe ^<SERIAL_PORT^> ^<FIRMWARE_FILE^>
-echo Example: MakcuFlasher.exe COM3 firmware_v3.8.bin
+echo Usage:
+echo   Interactive mode (recommended): MakcuFlasher.exe
+echo   Manual mode:                    MakcuFlasher.exe ^<SERIAL_PORT^> ^<FIRMWARE_FILE^>
+echo.
+echo Example:
+echo   %BUILD_DIR%\%BUILD_TYPE%\MakcuFlasher.exe                        # Auto-detect device and firmware
+echo   %BUILD_DIR%\%BUILD_TYPE%\MakcuFlasher.exe COM3 firmware\V3.8.bin  # Manual mode
 
 cd ..
