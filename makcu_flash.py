@@ -47,15 +47,21 @@ def find_firmware_files():
     files.sort()
     return files
 
-def flash_firmware(port, firmware_file, chip='esp32'):
+def flash_firmware(port, firmware_file, chip='esp32', target_name=None, target_instruction=None):
     """Flash firmware using esptool"""
     print(f"\n{'='*60}")
     print(f"  MakcuFlasher - ESP32 Firmware Uploader")
     print(f"{'='*60}")
+    print(f"Target:         {target_name if target_name else 'Generic'}")
     print(f"Serial Port:    {port}")
     print(f"Firmware File:  {firmware_file}")
     print(f"Chip Type:      {chip}")
     print(f"{'='*60}\n")
+
+    if target_instruction:
+        print(f"IMPORTANT INSTRUCTION:")
+        print(f"  {target_instruction}")
+        print(f"{'-'*60}\n")
 
     if not os.path.exists(firmware_file):
         print(f"[ERROR] Firmware file not found: {firmware_file}")
@@ -244,10 +250,22 @@ def interactive_mode():
         '4': 'esp32s2'
     }
 
-    selected_chip = chips.get(chip_choice, 'esp32')
+    # Select Flash Target (Main/Sub)
+    print("\nSelect Flash Target:")
+    print("  1. Flash 1 (Main PC) - USB 1 (Left Port)")
+    print("  2. Flash 3 (Sub PC)  - USB 3 (Right Port)")
     
+    target_choice = input("\nSelect target (1-2) [1]: ").strip()
+    
+    if target_choice == '2':
+        target_name = "Flash 3 (Sub PC)"
+        target_instruction = "Connect to USB 3 (Right Port) while holding the RIGHT button"
+    else:
+        target_name = "Flash 1 (Main PC)"
+        target_instruction = "Connect to USB 1 (Left Port) while holding the LEFT button"
+
     print()
-    return flash_firmware(serial_port, firmware_file, chip=selected_chip)
+    return flash_firmware(serial_port, firmware_file, chip=selected_chip, target_name=target_name, target_instruction=target_instruction)
 
 def main():
     if len(sys.argv) == 1:
@@ -267,7 +285,7 @@ def main():
         serial_port = sys.argv[1]
         firmware_file = sys.argv[2]
         chip = sys.argv[3]
-        success = flash_firmware(serial_port, firmware_file, chip)
+        success = flash_firmware(serial_port, firmware_file, chip=chip)
         sys.exit(0 if success else 1)
 
     else:
