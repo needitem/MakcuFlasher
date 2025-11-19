@@ -126,7 +126,9 @@ def flash_firmware(port, firmware_file, chip='esp32', target_name=None, target_i
 
     for cmd in cmd_variants:
         try:
-            result = subprocess.run(cmd, check=True)
+            # Capture output to check for specific errors
+            process = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            print(process.stdout)
             print(f"\n{'='*60}")
             print("  Firmware upload successful!")
             print(f"{'='*60}")
@@ -134,9 +136,22 @@ def flash_firmware(port, firmware_file, chip='esp32', target_name=None, target_i
         except FileNotFoundError:
             continue
         except subprocess.CalledProcessError as e:
-            print(f"\n{'='*60}")
-            print("  Firmware upload failed!")
-            print(f"{'='*60}")
+            print(e.stdout)
+            print(e.stderr)
+            
+            if "Permission denied" in e.stderr or "Permission denied" in e.stdout:
+                print(f"\n{'='*60}")
+                print("  [ERROR] PERMISSION DENIED")
+                print(f"{'='*60}")
+                print("  You do not have permission to access the serial port.")
+                print("  Please run the following command to fix it:")
+                print(f"\n    sudo usermod -a -G dialout $USER")
+                print("\n  Then LOG OUT and LOG BACK IN for changes to take effect.")
+                print(f"{'='*60}")
+            else:
+                print(f"\n{'='*60}")
+                print("  Firmware upload failed!")
+                print(f"{'='*60}")
             return False
 
     print("[ERROR] esptool could not be executed.")
