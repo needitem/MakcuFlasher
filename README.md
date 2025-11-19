@@ -85,43 +85,72 @@ build_linux/MakcuFlasher
 
 ## Usage
 
-### Firmware Files
+MakcuFlasher includes all firmware files (V2.0 - V3.8) in the `firmware/` directory. No need to download separately!
 
-You can download the latest firmware files from the [MAKCM_v2_files repository](https://github.com/terrafirma2021/MAKCM_v2_files).
+### Easy Interactive Mode (Recommended)
 
-Available firmware versions:
-- V2.0.bin
-- V3.0.bin
-- V3.2.bin
-- V3.4.bin
-- V3.7.bin
-- V3.8.bin
+Just run the program without arguments - it will automatically detect your device and show available firmware:
 
-### Windows
-
-```powershell
-# Upload firmware to COM3
-MakcuFlasher.exe COM3 firmware_v3.8.bin
-
-# Upload firmware to COM4
-MakcuFlasher.exe COM4 V3.8.bin
+**Linux:**
+```bash
+./MakcuFlasher
 ```
 
-### Linux
+**Windows:**
+```powershell
+MakcuFlasher.exe
+```
 
-First, ensure you have serial port permissions:
+The program will:
+1. Auto-detect all connected serial devices
+2. Show available firmware files
+3. Let you select with numbers or type manually
+
+Example interactive session:
+```
+==================================================
+    MakcuFlasher - Interactive Mode
+==================================================
+
+Available serial ports:
+  1. /dev/ttyUSB0
+  2. /dev/ttyACM0
+
+Select port (1-2) or enter manually: 1
+
+Available firmware files:
+  1. firmware/V2.0.bin
+  2. firmware/V3.0.bin
+  3. firmware/V3.2.bin
+  4. firmware/V3.4.bin
+  5. firmware/V3.7.bin
+  6. firmware/V3.8.bin
+
+Select firmware (1-6) or enter path: 6
+```
+
+### Manual Mode
+
+You can also specify the port and firmware directly:
+
+**Linux:**
+```bash
+# Upload firmware to /dev/ttyUSB0
+./MakcuFlasher /dev/ttyUSB0 firmware/V3.8.bin
+```
+
+**Windows:**
+```powershell
+# Upload firmware to COM3
+MakcuFlasher.exe COM3 firmware\V3.8.bin
+```
+
+### First-time Setup (Linux only)
+
+Ensure you have serial port permissions:
 ```bash
 sudo usermod -a -G dialout $USER
 # Log out and log back in for the change to take effect
-```
-
-Then upload the firmware:
-```bash
-# Upload firmware to /dev/ttyUSB0
-./MakcuFlasher /dev/ttyUSB0 firmware_v3.8.bin
-
-# Upload firmware to /dev/ttyACM0
-./MakcuFlasher /dev/ttyACM0 V3.8.bin
 ```
 
 ### Firmware Upload Process
