@@ -70,37 +70,58 @@ def flash_firmware(port, firmware_file, chip='esp32'):
     print("*" * 60)
     print()
 
-    # esptool command
-    cmd = [
-        'esptool.py',
-        '--chip', chip,
-        '--port', port,
-        '--baud', '460800',
-        '--before', 'default_reset',
-        '--after', 'hard_reset',
-        'write_flash',
-        '-z',
-        '--flash_mode', 'dio',
-        '--flash_freq', '40m',
-        '--flash_size', 'detect',
-        '0x0', firmware_file
+    # esptool command - try both esptool.py and python -m esptool
+    cmd_variants = [
+        # Try esptool.py first (if installed as script)
+        [
+            'esptool.py',
+            '--chip', chip,
+            '--port', port,
+            '--baud', '460800',
+            '--before', 'default_reset',
+            '--after', 'hard_reset',
+            'write_flash',
+            '-z',
+            '--flash_mode', 'dio',
+            '--flash_freq', '40m',
+            '--flash_size', 'detect',
+            '0x0', firmware_file
+        ],
+        # Fallback to python -m esptool (if installed as module)
+        [
+            sys.executable, '-m', 'esptool',
+            '--chip', chip,
+            '--port', port,
+            '--baud', '460800',
+            '--before', 'default_reset',
+            '--after', 'hard_reset',
+            'write_flash',
+            '-z',
+            '--flash_mode', 'dio',
+            '--flash_freq', '40m',
+            '--flash_size', 'detect',
+            '0x0', firmware_file
+        ]
     ]
 
-    try:
-        result = subprocess.run(cmd, check=True)
-        print(f"\n{'='*60}")
-        print("  Firmware upload successful!")
-        print(f"{'='*60}")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"\n{'='*60}")
-        print("  Firmware upload failed!")
-        print(f"{'='*60}")
-        return False
-    except FileNotFoundError:
-        print("[ERROR] esptool.py not found. Please install it:")
-        print("  pip3 install esptool")
-        return False
+    for cmd in cmd_variants:
+        try:
+            result = subprocess.run(cmd, check=True)
+            print(f"\n{'='*60}")
+            print("  Firmware upload successful!")
+            print(f"{'='*60}")
+            return True
+        except FileNotFoundError:
+            continue
+        except subprocess.CalledProcessError as e:
+            print(f"\n{'='*60}")
+            print("  Firmware upload failed!")
+            print(f"{'='*60}")
+            return False
+
+    print("[ERROR] esptool not found. Please install it:")
+    print("  pip3 install esptool")
+    return False
 
 def interactive_mode():
     """Interactive mode with auto-detection"""
