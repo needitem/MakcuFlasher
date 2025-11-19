@@ -85,6 +85,117 @@ def get_firmware_for_target(version, target_type, version_map):
     # 3. Last resort: return first file
     return files[0] if files else None
 
+def flash_firmware(port, firmware_file, chip='esp32', target_name=None, target_instruction=None):
+    """Flash firmware using esptool"""
+    print(f"\n{'='*60}")
+    print(f"  MakcuFlasher - ESP32 Firmware Uploader")
+    print(f"{'='*60}")
+    print(f"Target:         {target_name if target_name else 'Generic'}")
+    print(f"Serial Port:    {port}")
+    print(f"Firmware File:  {firmware_file}")
+    print(f"Chip Type:      {chip}")
+    print(f"{'='*60}\n")
+
+    if target_instruction:
+        print(f"IMPORTANT INSTRUCTION:")
+        print(f"  {target_instruction}")
+        print(f"{'-'*60}\n")
+
+    if not os.path.exists(firmware_file):
+        print(f"[ERROR] Firmware file not found: {firmware_file}")
+        return False
+
+    file_size = os.path.getsize(firmware_file)
+    print(f"[INFO] Firmware size: {file_size:,} bytes\n")
+
+    print("*" * 60)
+    print("  WARNING: Do not disconnect the device during")
+    print("  the firmware upload process!")
+    print("*" * 60)
+    print()
+
+    # Check for esptool dependency
+    try:
+        import esptool
+    except ImportError:
+        print(f"\n{'='*60}")
+        print("  [ERROR] esptool not found!")
+        print(f"{'='*60}")
+        print("  Please install the required dependencies:")
+        print("    pip3 install -r requirements.txt")
+        print("    # or")
+        print("    pip3 install esptool")
+        print(f"{'='*60}\n")
+        return False
+
+    # esptool command - try both esptool.py and python -m esptool
+    cmd_variants = [
+        # Try esptool.py first (if installed as script)
+        [
+            'esptool.py',
+            '--chip', chip,
+            '--port', port,
+            '--baud', '460800',
+            '--before', 'default_reset',
+            '--after', 'hard_reset',
+            'write_flash',
+            '-z',
+            '--flash_mode', 'dio',
+            '--flash_freq', '40m',
+            '--flash_size', 'detect',
+            '0x0', firmware_file
+        ],
+        # Fallback to python -m esptool (if installed as module)
+        [
+            sys.executable, '-m', 'esptool',
+            '--chip', chip,
+            '--port', port,
+            '--baud', '460800',
+            '--before', 'default_reset',
+            '--after', 'hard_reset',
+            'write_flash',
+            '-z',
+            '--flash_mode', 'dio',
+            '--flash_freq', '40m',
+            '--flash_size', 'detect',
+            '0x0', firmware_file
+        ]
+    ]
+
+    for cmd in cmd_variants:
+        try:
+            # Capture output to check for specific errors
+            process = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            print(process.stdout)
+            print(f"\n{'='*60}")
+            print("  Firmware upload successful!")
+            print(f"{'='*60}")
+            return True
+        except FileNotFoundError:
+            continue
+        except subprocess.CalledProcessError as e:
+            print(e.stdout)
+            print(e.stderr)
+            
+            if "Permission denied" in e.stderr or "Permission denied" in e.stdout:
+                print(f"\n{'='*60}")
+                print("  [ERROR] PERMISSION DENIED")
+                print(f"{'='*60}")
+                print("  You do not have permission to access the serial port.")
+                print("  Please run the following command to fix it:")
+                print(f"\n    sudo usermod -a -G dialout $USER")
+                print("\n  Then LOG OUT and LOG BACK IN for changes to take effect.")
+                print(f"{'='*60}")
+            else:
+                print(f"\n{'='*60}")
+                print("  Firmware upload failed!")
+                print(f"{'='*60}")
+            return False
+
+    print("[ERROR] esptool could not be executed.")
+    print("  Please ensure it is installed correctly.")
+    return False
+
 def interactive_mode():
     """Interactive mode with auto-detection"""
     print(f"{'='*60}")
