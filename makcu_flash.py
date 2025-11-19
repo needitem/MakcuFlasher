@@ -32,131 +32,58 @@ def find_serial_ports():
 
     return ports
 
-def find_firmware_files():
-    """Find available firmware files"""
+def find_firmware_versions():
+    """Find available firmware versions"""
     search_paths = ['firmware', '../firmware', '.']
     files = []
-
+    
     for path in search_paths:
         pattern = os.path.join(path, '*.bin')
         found = glob.glob(pattern)
         if found:
             files.extend(found)
             break
-
-    files.sort()
-    return files
-
-def flash_firmware(port, firmware_file, chip='esp32', target_name=None, target_instruction=None):
-    """Flash firmware using esptool"""
-    print(f"\n{'='*60}")
-    print(f"  MakcuFlasher - ESP32 Firmware Uploader")
-    print(f"{'='*60}")
-    print(f"Target:         {target_name if target_name else 'Generic'}")
-    print(f"Serial Port:    {port}")
-    print(f"Firmware File:  {firmware_file}")
-    print(f"Chip Type:      {chip}")
-    print(f"{'='*60}\n")
-
-    if target_instruction:
-        print(f"IMPORTANT INSTRUCTION:")
-        print(f"  {target_instruction}")
-        print(f"{'-'*60}\n")
-
-    if not os.path.exists(firmware_file):
-        print(f"[ERROR] Firmware file not found: {firmware_file}")
-        return False
-
-    file_size = os.path.getsize(firmware_file)
-    print(f"[INFO] Firmware size: {file_size:,} bytes\n")
-
-    print("*" * 60)
-    print("  WARNING: Do not disconnect the device during")
-    print("  the firmware upload process!")
-    print("*" * 60)
-    print()
-
-    # Check for esptool dependency
-    try:
-        import esptool
-    except ImportError:
-        print(f"\n{'='*60}")
-        print("  [ERROR] esptool not found!")
-        print(f"{'='*60}")
-        print("  Please install the required dependencies:")
-        print("    pip3 install -r requirements.txt")
-        print("    # or")
-        print("    pip3 install esptool")
-        print(f"{'='*60}\n")
-        return False
-
-    # esptool command - try both esptool.py and python -m esptool
-    cmd_variants = [
-        # Try esptool.py first (if installed as script)
-        [
-            'esptool.py',
-            '--chip', chip,
-            '--port', port,
-            '--baud', '460800',
-            '--before', 'default_reset',
-            '--after', 'hard_reset',
-            'write_flash',
-            '-z',
-            '--flash_mode', 'dio',
-            '--flash_freq', '40m',
-            '--flash_size', 'detect',
-            '0x0', firmware_file
-        ],
-        # Fallback to python -m esptool (if installed as module)
-        [
-            sys.executable, '-m', 'esptool',
-            '--chip', chip,
-            '--port', port,
-            '--baud', '460800',
-            '--before', 'default_reset',
-            '--after', 'hard_reset',
-            'write_flash',
-            '-z',
-            '--flash_mode', 'dio',
-            '--flash_freq', '40m',
-            '--flash_size', 'detect',
-            '0x0', firmware_file
-        ]
-    ]
-
-    for cmd in cmd_variants:
-        try:
-            # Capture output to check for specific errors
-            process = subprocess.run(cmd, check=True, capture_output=True, text=True)
-            print(process.stdout)
-            print(f"\n{'='*60}")
-            print("  Firmware upload successful!")
-            print(f"{'='*60}")
-            return True
-        except FileNotFoundError:
-            continue
-        except subprocess.CalledProcessError as e:
-            print(e.stdout)
-            print(e.stderr)
+    
+    # Extract unique versions (e.g., V3.8 from V3.8_LEFT.bin)
+    versions = set()
+    version_map = {} # version -> list of files
+    
+    for f in files:
+        filename = os.path.basename(f)
+        # Simple heuristic: take the first part before _ or .bin
+        # e.g. V3.8_LEFT.bin -> V3.8
+        # e.g. V2.0.bin -> V2.0
+        
+        base = filename.split('_')[0].replace('.bin', '')
+        if base.startswith('V'):
+            versions.add(base)
+            if base not in version_map:
+                version_map[base] = []
+            version_map[base].append(f)
             
-            if "Permission denied" in e.stderr or "Permission denied" in e.stdout:
-                print(f"\n{'='*60}")
-                print("  [ERROR] PERMISSION DENIED")
-                print(f"{'='*60}")
-                print("  You do not have permission to access the serial port.")
-                print("  Please run the following command to fix it:")
-                print(f"\n    sudo usermod -a -G dialout $USER")
-                print("\n  Then LOG OUT and LOG BACK IN for changes to take effect.")
-                print(f"{'='*60}")
-            else:
-                print(f"\n{'='*60}")
-                print("  Firmware upload failed!")
-                print(f"{'='*60}")
-            return False
+    sorted_versions = sorted(list(versions))
+    return sorted_versions, version_map
 
-    print("[ERROR] esptool could not be executed.")
-    print("  Please ensure it is installed correctly.")
-    return False
+def get_firmware_for_target(version, target_type, version_map):
+    """Select specific firmware file based on target"""
+    files = version_map.get(version, [])
+    
+    # Target type: 'main' (Flash 1/Left) or 'sub' (Flash 3/Right)
+    keyword = 'LEFT' if target_type == 'main' else 'RIGHT'
+    
+    # 1. Look for exact match with keyword
+    for f in files:
+        if keyword in os.path.basename(f).upper():
+            return f
+            
+    # 2. Fallback: Look for generic file (no LEFT/RIGHT)
+    for f in files:
+        upper_name = os.path.basename(f).upper()
+        if 'LEFT' not in upper_name and 'RIGHT' not in upper_name:
+            return f
+            
+    # 3. Last resort: return first file
+    return files[0] if files else None
 
 def interactive_mode():
     """Interactive mode with auto-detection"""
@@ -191,29 +118,31 @@ def interactive_mode():
     except ValueError:
         serial_port = choice
 
-    # Find firmware files
-    firmwares = find_firmware_files()
+    # Find firmware versions
+    versions, version_map = find_firmware_versions()
 
-    if not firmwares:
+    if not versions:
         print("\n[ERROR] No firmware files found!")
         print("Please place .bin files in the 'firmware' directory.")
         return False
 
-    print("\nAvailable firmware files:")
-    for i, fw in enumerate(firmwares, 1):
-        print(f"  {i}. {fw}")
+    print("\nAvailable Firmware Versions:")
+    for i, ver in enumerate(versions, 1):
+        print(f"  {i}. {ver}")
 
-    # Select firmware
-    choice = input(f"\nSelect firmware (1-{len(firmwares)}) or enter path: ").strip()
+    # Select firmware version
+    choice = input(f"\nSelect version (1-{len(versions)}): ").strip()
 
     try:
         idx = int(choice) - 1
-        if 0 <= idx < len(firmwares):
-            firmware_file = firmwares[idx]
+        if 0 <= idx < len(versions):
+            selected_version = versions[idx]
         else:
-            firmware_file = choice
+            print("Invalid selection.")
+            return False
     except ValueError:
-        firmware_file = choice
+        print("Invalid selection.")
+        return False
 
     # Select chip
     print("\nSelect Chip Type:")
@@ -275,11 +204,20 @@ def interactive_mode():
     target_choice = input("\nSelect target (1-2) [1]: ").strip()
     
     if target_choice == '2':
+        target_type = 'sub'
         target_name = "Flash 3 (Sub PC)"
         target_instruction = "Connect to USB 3 (Right Port) while holding the RIGHT button"
     else:
+        target_type = 'main'
         target_name = "Flash 1 (Main PC)"
         target_instruction = "Connect to USB 1 (Left Port) while holding the LEFT button"
+
+    # Resolve firmware file based on version and target
+    firmware_file = get_firmware_for_target(selected_version, target_type, version_map)
+    
+    if not firmware_file:
+        print(f"\n[ERROR] Could not find firmware file for version {selected_version} and target {target_name}")
+        return False
 
     print()
     return flash_firmware(serial_port, firmware_file, chip=selected_chip, target_name=target_name, target_instruction=target_instruction)
