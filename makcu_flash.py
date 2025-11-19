@@ -250,6 +250,8 @@ def interactive_mode():
         '4': 'esp32s2'
     }
 
+    selected_chip = chips.get(chip_choice, 'esp32')
+
     # Select Flash Target (Main/Sub)
     print("\nSelect Flash Target:")
     print("  1. Flash 1 (Main PC) - USB 1 (Left Port)")
