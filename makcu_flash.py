@@ -70,6 +70,20 @@ def flash_firmware(port, firmware_file, chip='esp32'):
     print("*" * 60)
     print()
 
+    # Check for esptool dependency
+    try:
+        import esptool
+    except ImportError:
+        print(f"\n{'='*60}")
+        print("  [ERROR] esptool not found!")
+        print(f"{'='*60}")
+        print("  Please install the required dependencies:")
+        print("    pip3 install -r requirements.txt")
+        print("    # or")
+        print("    pip3 install esptool")
+        print(f"{'='*60}\n")
+        return False
+
     # esptool command - try both esptool.py and python -m esptool
     cmd_variants = [
         # Try esptool.py first (if installed as script)
@@ -119,8 +133,8 @@ def flash_firmware(port, firmware_file, chip='esp32'):
             print(f"{'='*60}")
             return False
 
-    print("[ERROR] esptool not found. Please install it:")
-    print("  pip3 install esptool")
+    print("[ERROR] esptool could not be executed.")
+    print("  Please ensure it is installed correctly.")
     return False
 
 def interactive_mode():
