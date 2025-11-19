@@ -194,8 +194,60 @@ def interactive_mode():
     except ValueError:
         firmware_file = choice
 
+    # Select chip
+    print("\nSelect Chip Type:")
+    
+    # Try to auto-detect chip
+    detected_chip = None
+    print("  [INFO] Attempting to auto-detect chip type...")
+    try:
+        # Try to run esptool chip_id command
+        cmd = [sys.executable, '-m', 'esptool', '--port', serial_port, 'chip_id']
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+        output = result.stdout
+        
+        if "ESP32-S3" in output:
+            detected_chip = 'esp32s3'
+            print("  [SUCCESS] Detected: ESP32-S3")
+        elif "ESP32-C3" in output:
+            detected_chip = 'esp32c3'
+            print("  [SUCCESS] Detected: ESP32-C3")
+        elif "ESP32-S2" in output:
+            detected_chip = 'esp32s2'
+            print("  [SUCCESS] Detected: ESP32-S2")
+        elif "ESP32" in output:
+            detected_chip = 'esp32'
+            print("  [SUCCESS] Detected: ESP32")
+        else:
+            print("  [WARNING] Could not identify chip type from output.")
+    except Exception as e:
+        print(f"  [WARNING] Auto-detection failed: {e}")
+
+    print("\n  1. ESP32")
+    print("  2. ESP32-S3")
+    print("  3. ESP32-C3")
+    print("  4. ESP32-S2")
+
+    default_idx = '1'
+    if detected_chip == 'esp32s3': default_idx = '2'
+    elif detected_chip == 'esp32c3': default_idx = '3'
+    elif detected_chip == 'esp32s2': default_idx = '4'
+
+    chip_choice = input(f"\nSelect chip (1-4) [{default_idx}]: ").strip()
+    if not chip_choice:
+        chip_choice = default_idx
+
+    chips = {
+        '1': 'esp32',
+        '2': 'esp32s3',
+        '3': 'esp32c3',
+        '4': 'esp32s2'
+    }
+
+    selected_chip = chips.get(chip_choice, 'esp32')
+    
     print()
-    return flash_firmware(serial_port, firmware_file)
+    return flash_firmware(serial_port, firmware_file, chip=selected_chip)
 
 def main():
     if len(sys.argv) == 1:
@@ -209,15 +261,24 @@ def main():
         firmware_file = sys.argv[2]
         success = flash_firmware(serial_port, firmware_file)
         sys.exit(0 if success else 1)
+    
+    elif len(sys.argv) == 4:
+        # Manual mode with chip: port, firmware, chip
+        serial_port = sys.argv[1]
+        firmware_file = sys.argv[2]
+        chip = sys.argv[3]
+        success = flash_firmware(serial_port, firmware_file, chip)
+        sys.exit(0 if success else 1)
 
     else:
         print("MakcuFlasher - ESP32-based Makcu firmware uploader\n")
         print("Usage:")
         print("  Interactive mode: python makcu_flash.py")
-        print("  Manual mode:      python makcu_flash.py <PORT> <FIRMWARE>\n")
+        print("  Manual mode:      python makcu_flash.py <PORT> <FIRMWARE> [CHIP]\n")
         print("Examples:")
         if sys.platform == 'win32':
             print("  python makcu_flash.py COM3 firmware/V3.8.bin")
+            print("  python makcu_flash.py COM3 firmware/V3.8.bin esp32s3")
         else:
             print("  python makcu_flash.py /dev/ttyACM0 firmware/V3.8.bin")
         sys.exit(1)
